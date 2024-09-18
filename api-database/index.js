@@ -29,6 +29,16 @@ async function getClient() {
   }
 }
 
+async function getClientByEmail(email) {
+  try {
+    const res = await pool.query("SELECT * FROM public.client WHERE email = '" + email + "'");
+    return res.rows; // Retourne les résultats de la requête
+  } catch (err) {
+    console.error('Erreur lors de la récupération des clients:', err);
+    throw err; // Rejeter l'erreur pour la gestion ultérieure
+  }
+}
+
 async function getProduct() {
   try {
     const res = await pool.query('SELECT * FROM product');
@@ -50,11 +60,11 @@ async function getDownload() {
 }
 
 // Exemple de fonction pour ajouter un nouvel employé
-async function addClient(name, lastName, sexe, age, companie) {
+async function addClient(name, lastName, sexe, age, companie, password) {
   try {
     const res = await pool.query(
-      'INSERT INTO client(name, lastName, sexe, age, companie) VALUES($1, $2, $3, $4, $5) RETURNING *',
-      [name, lastName, sexe, age, companie]
+      'INSERT INTO client(name, lastName, sexe, age, companie, password, email) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [name, lastName, sexe, age, companie, password, email]
     );
     console.log('Nouvel client ajouté:', res.rows[0]);
   } catch (err) {
@@ -87,7 +97,17 @@ async function addDownload(id_product, id_client) {
 }
 
 // Définir une route GET pour obtenir les clients
-app.get('/account', async (req, res) => {
+app.get('/usersMail', async (req, res) => {
+  try {
+    const data = req.body;
+    const clients = await getClientByEmail(data.email); // Attendre la résolution de la promesse
+    res.json(clients); // Envoyer les résultats comme JSON
+  } catch (err) {
+    res.status(500).send('Erreur lors de la récupération des clients');
+  }
+});
+
+app.get('/users', async (req, res) => {
   try {
     const clients = await getClient(); // Attendre la résolution de la promesse
     res.json(clients); // Envoyer les résultats comme JSON
@@ -122,6 +142,19 @@ app.post('/product', (req, res) => {
     const data = req.body;
     res.status(200).json({ message: 'Données reçues avec succès', data });
     addProduct(data.name, data.price);
+  } catch (error) {
+    console.error('Erreur de traitement:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+app.post('/users', (req, res) => {
+  console.log('Requête POST reçue sur /users');
+  console.log('Données reçues :', req.body);
+  try {
+    const data = req.body;
+    res.status(200).json({ message: 'Données reçues avec succès', data });
+    addClient(data.name, data.lastName, data.sexe, data.age, data.companie, data.password, data.email);
   } catch (error) {
     console.error('Erreur de traitement:', error);
     res.status(500).json({ message: 'Erreur serveur' });

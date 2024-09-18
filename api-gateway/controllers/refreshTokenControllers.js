@@ -4,13 +4,11 @@ exports.refresh = async (req, res) => {
     const { refreshToken } = req.body;
 
     if (!refreshToken) {
-        return res.status(401).json({ error: 'No refresh token, authorization denied' });
+        return res.status(402).json({ message: 'No refresh token, authorization denied' });
     }
 
     try {
         const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-
-        
         const token = jwt.sign(
             { userId: decoded.userId },
             process.env.JWT_SECRET,
@@ -22,3 +20,4 @@ exports.refresh = async (req, res) => {
         res.status(401).json({ message: 'Refresh token is not valid' });
     }
 };
+

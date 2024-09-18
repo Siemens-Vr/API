@@ -2,6 +2,7 @@ const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 
 // Charger les variables d'environnement
 dotenv.config();
@@ -24,6 +25,24 @@ app.get('/', (req, res) => {
 // Middleware pour parser les JSON
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+
+exports.protect = (req, res, next) => {
+    const bearerToken = req.header('Authorization')
+    const token = bearerToken ? bearerToken.replace('Bearer ', '') : null;
+    if (!token) {
+        return res.status(401).json({ message: 'No token, authorization denied' });
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (error) {
+        res.status(401).json({ message: 'Token is not valid' });
+    }
+};
+
 
 const serviceDBProxy = createProxyMiddleware({
   target: 'http://localhost:5002',
@@ -54,9 +73,9 @@ const serviceDwlProxy = createProxyMiddleware({
 app.use('/api-database', (req, res, next) => {
   console.log(`Request Method: ${req.method}, Request Path: ${req.path}`);
   next();
-}, serviceDBProxy);
-app.use('/api-shadow', serviceShadowProxy);
-app.use('/api-dwl', serviceDwlProxy);
+}, this.protect, serviceDBProxy);
+app.use('/api-shadow', this.protect, serviceShadowProxy);
+app.use('/api-dwl', this.protect, serviceDwlProxy);
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
