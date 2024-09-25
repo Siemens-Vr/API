@@ -3,11 +3,16 @@ const express = require('express');
 const bodyParser = require('body-parser'); // Pour analyser le corps des requêtes POST
 const cors = require('cors');
 const app = express();
-
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const DataBaseRoutes = require('./routes/DatabaseRoute')
 const pool = require('./db');
+const dotenv = require('dotenv')
+
+require('dotenv').config();
 
 const corsOptions = {
-  origin: 'http://localhost:3002', // Replace with your React app's URL
+  origin: 'http://localhost:3000', // Replace with your React app's URL
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   allowedHeaders: 'Content-Type,Authorization,Accept,X-Requested-With',
 };
@@ -18,8 +23,11 @@ app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: true }));
 
+
+app.use('/api-database', DataBaseRoutes);
+
 // Exemple de fonction pour obtenir tous les clients
-async function getClient() {
+ async function getClient() {
   try {
     const res = await pool.query('SELECT * FROM client');
     return res.rows; // Retourne les résultats de la requête
@@ -29,17 +37,7 @@ async function getClient() {
   }
 }
 
-async function getClientByEmail(email) {
-  try {
-    const res = await pool.query("SELECT * FROM public.client WHERE email = '" + email + "'");
-    return res.rows; // Retourne les résultats de la requête
-  } catch (err) {
-    console.error('Erreur lors de la récupération des clients:', err);
-    throw err; // Rejeter l'erreur pour la gestion ultérieure
-  }
-}
-
-async function getProduct() {
+ async function getProduct() {
   try {
     const res = await pool.query('SELECT * FROM product');
     return res.rows; // Retourne les résultats de la requête
@@ -49,7 +47,7 @@ async function getProduct() {
   }
 }
 
-async function getDownload() {
+ async function getDownload() {
   try {
     const res = await pool.query('SELECT * FROM download');
     return res.rows; // Retourne les résultats de la requête
@@ -60,11 +58,11 @@ async function getDownload() {
 }
 
 // Exemple de fonction pour ajouter un nouvel employé
-async function addClient(name, lastName, sexe, age, companie, password) {
+ async function addClient(name, lastName, gender, age, company, password, email) {
   try {
     const res = await pool.query(
-      'INSERT INTO client(name, lastName, sexe, age, companie, password, email) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [name, lastName, sexe, age, companie, password, email]
+      'INSERT INTO client(name, lastName, gender, age, company, password, email) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [name, lastName, gender, age, company, password, email]
     );
     console.log('Nouvel client ajouté:', res.rows[0]);
   } catch (err) {
@@ -72,7 +70,7 @@ async function addClient(name, lastName, sexe, age, companie, password) {
   }
 }
 
-async function addProduct(name, price) {
+ async function addProduct(name, price) {
   try {
     const res = await pool.query(
       'INSERT INTO product(name, price) VALUES($1, $2) RETURNING *',
@@ -84,7 +82,7 @@ async function addProduct(name, price) {
   }
 }
 
-async function addDownload(id_product, id_client) {
+ async function addDownload(id_product, id_client) {
   try {
     const res = await pool.query(
       'INSERT INTO download(client_id, product_id) VALUES($1, $2) RETURNING *',
@@ -148,13 +146,14 @@ app.post('/product', (req, res) => {
   }
 });
 
+
 app.post('/users', (req, res) => {
   console.log('Requête POST reçue sur /users');
   console.log('Données reçues :', req.body);
   try {
     const data = req.body;
+    addClient(data.name, data.lastName, data.gender, data.age, data.company, data.password, data.email);
     res.status(200).json({ message: 'Données reçues avec succès', data });
-    addClient(data.name, data.lastName, data.sexe, data.age, data.companie, data.password, data.email);
   } catch (error) {
     console.error('Erreur de traitement:', error);
     res.status(500).json({ message: 'Erreur serveur' });

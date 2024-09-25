@@ -11,7 +11,7 @@ const app = express();
 
 
 const corsOptions = {
-  origin: 'http://localhost:3002', // Replace with your React app's URL
+  origin: 'http://localhost:3000', // Replace with your React app's URL
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   allowedHeaders: 'Content-Type,Authorization,Accept,X-Requested-With',
 };
@@ -43,39 +43,34 @@ exports.protect = (req, res, next) => {
     }
 };
 
-
-const serviceDBProxy = createProxyMiddleware({
-  target: 'http://localhost:5002',
-  changeOrigin: true,
-  pathRewrite: {
-    '^/api-database': '', 
-  },
+app.get('/api-database', async (req, res) => {
+  try {
+    console.log('test');
+    const response = await axios.get('http://localhost:5002/api-database');
+    res.json(response.data);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch api-database' });
+  }
 });
 
-// Configuration des proxys
-const serviceShadowProxy = createProxyMiddleware({
-  target: 'http://localhost:5003',
-  changeOrigin: true,
-  pathRewrite: {
-    '^/api-shadow': '', 
-  },
+
+app.get('/api-shadow', async (req, res) => {
+  try {
+    const response = await axios.get('http://localhost:5003/api-shadow');
+    res.json(response.data);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch api-shadow' });
+  }
 });
 
-const serviceDwlProxy = createProxyMiddleware({
-  target: 'http://localhost:5004',
-  changeOrigin: true,
-  pathRewrite: {
-    '^/api-dwl': '', 
-  },
+app.get('/api-dwl', async (req, res) => {
+  try {
+    const response = await axios.get('http://localhost:5004/api-dwl');
+    res.json(response.data);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch api-dwl' });
+  }
 });
-
-// Rediriger les requêtes
-app.use('/api-database', (req, res, next) => {
-  console.log(`Request Method: ${req.method}, Request Path: ${req.path}`);
-  next();
-}, this.protect, serviceDBProxy);
-app.use('/api-shadow', this.protect, serviceShadowProxy);
-app.use('/api-dwl', this.protect, serviceDwlProxy);
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
