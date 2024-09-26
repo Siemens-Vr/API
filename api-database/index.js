@@ -37,9 +37,14 @@ app.use('/api-database', DataBaseRoutes);
   }
 }
 
- async function getProduct() {
+ async function getProduct(name) {
   try {
-    const res = await pool.query('SELECT * FROM product');
+        // Parameterized query to prevent SQL injection
+        const query = 'SELECT * FROM product WHERE name = $1';
+        const values = [name]; // Define the values array
+
+        // Execute the query with parameters
+        const res = await pool.query(query, values);
     return res.rows; // Retourne les résultats de la requête
   } catch (err) {
     console.error('Erreur lors de la récupération des products:', err);
@@ -54,6 +59,26 @@ app.use('/api-database', DataBaseRoutes);
   } catch (err) {
     console.error('Erreur lors de la récupération des downloads:', err);
     throw err; // Rejeter l'erreur pour la gestion ultérieure
+  }
+}
+
+
+
+async function getClientByEmail(email) {
+  try {
+      
+      // Parameterized query to prevent SQL injection
+      const query = 'SELECT * FROM public.client WHERE email = $1';
+      const values = [email]; // Define the values array
+
+      // Execute the query with parameters
+      const res = await pool.query(query, values);
+      
+      // Return the rows
+      return res.rows;
+  } catch (err) {
+      console.error('Erreur lors de la récupération des clients:', err);
+      throw err; // Rejeter l'erreur pour la gestion ultérieure
   }
 }
 
@@ -95,10 +120,9 @@ app.use('/api-database', DataBaseRoutes);
 }
 
 // Définir une route GET pour obtenir les clients
-app.get('/usersMail', async (req, res) => {
+app.get('/userMail', async (req, res) => {
   try {
-    const data = req.body;
-    const clients = await getClientByEmail(data.email); // Attendre la résolution de la promesse
+    const clients = await getClientByEmail(req.query.email); // Attendre la résolution de la promesse
     res.json(clients); // Envoyer les résultats comme JSON
   } catch (err) {
     res.status(500).send('Erreur lors de la récupération des clients');
@@ -124,9 +148,22 @@ app.get('/download', async (req, res) => {
   }
 });
 
+
+app.post('/newDownload', async (req, res) => {
+  try {
+    const data = req.body.params;
+    console.log(data)
+    const downloads = await addDownload(data.productId, data.userId); // Attendre la résolution de la promesse
+    res.json(downloads); // Envoyer les résultats comme JSON
+  } catch (err) {
+    res.status(500).send('Erreur lors de la récupération des downloads');
+  }
+});
+
+
 app.get('/product', async (req, res) => {
   try {
-    const products = await getProduct(); // Attendre la résolution de la promesse
+    const products = await getProduct(req.query.productName); // Attendre la résolution de la promesse
     res.json(products); // Envoyer les résultats comme JSON
   } catch (err) {
     res.status(500).send('Erreur lors de la récupération des products');

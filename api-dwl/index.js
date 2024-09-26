@@ -1,28 +1,26 @@
 const express = require('express');
-const path = require('path');
-const fs = require('fs');
+const bodyParser = require('body-parser'); // Pour analyser le corps des requêtes POST
+const cors = require('cors');
 const app = express();
+const DwlRoute = require('./routes/DwlRoute')
 
-// Route pour le téléchargement de fichiers
+const corsOptions = {
+  origin: 'http://localhost:3000', // Replace with your React app's URL
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  allowedHeaders: 'Content-Type,Authorization,Accept,X-Requested-With',
+};
+
+app.use(cors(corsOptions));
+
+// Middleware pour analyser le corps des requêtes POST
+app.use(bodyParser.json());
+app.use(express.urlencoded({ extended: true }));
+
 app.get('/', (req, res) => {
-    const filePath = './FilesDwl/EV 70 FPS.apk'; // Chemin vers votre fichier
-  
-    // Vérifiez si le fichier existe
-    fs.access(filePath, fs.constants.F_OK, (err) => {
-      if (err) {
-        console.error('Fichier non trouvé:', err);
-        return res.status(404).send('Fichier non trouvé');
-      }
-      
-      // Envoyer le fichier pour téléchargement
-      res.download(filePath, (err) => {
-        if (err) {
-          console.error('Erreur lors du téléchargement:', err);
-          res.status(500).send('Erreur lors du téléchargement');
-        }
-      });
-    });
-  });
+  res.send('Hello, world dwl!');
+});
+
+app.use('/', DwlRoute);
 
 app.listen(5004, () => {
   console.log('Serveur démarré sur le port 5004');

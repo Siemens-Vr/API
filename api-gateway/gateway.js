@@ -46,7 +46,7 @@ exports.protect = (req, res, next) => {
 app.get('/api-database', async (req, res) => {
   try {
     console.log('test');
-    const response = await axios.get('http://localhost:5002/api-database');
+    const response = await axios.get('http://localhost:5002/');
     res.json(response.data);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch api-database' });
@@ -56,7 +56,7 @@ app.get('/api-database', async (req, res) => {
 
 app.get('/api-shadow', async (req, res) => {
   try {
-    const response = await axios.get('http://localhost:5003/api-shadow');
+    const response = await axios.get('http://localhost:5003/');
     res.json(response.data);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch api-shadow' });
@@ -65,7 +65,7 @@ app.get('/api-shadow', async (req, res) => {
 
 app.get('/api-dwl', async (req, res) => {
   try {
-    const response = await axios.get('http://localhost:5004/api-dwl');
+    const response = await axios.get('http://localhost:5004/');
     res.json(response.data);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch api-dwl' });
