@@ -37,20 +37,32 @@ app.use('/api-database', DataBaseRoutes);
   }
 }
 
- async function getProduct(name) {
-  try {
-        // Parameterized query to prevent SQL injection
-        const query = 'SELECT * FROM product WHERE name = $1';
-        const values = [name]; // Define the values array
+//  async function getProduct(name) {
+//   try {
+//         // Parameterized query to prevent SQL injection
+//         const query = 'SELECT * FROM product WHERE name = $1';
+//         const values = [name]; // Define the values array
 
-        // Execute the query with parameters
-        const res = await pool.query(query, values);
-    return res.rows; // Retourne les résultats de la requête
+//         // Execute the query with parameters
+//         const res = await pool.query(query, values);
+//     return res.rows; // Retourne les résultats de la requête
+//   } catch (err) {
+//     console.error('Erreur lors de la récupération des products:', err);
+//     throw err; // Rejeter l'erreur pour la gestion ultérieure
+//   }
+// }
+async function getProducts() {
+  try {
+    const res = await pool.query('SELECT * FROM product');
+    console.log('Fetched products:', res.rows); // Log fetched products
+    return res.rows;
   } catch (err) {
     console.error('Erreur lors de la récupération des products:', err);
-    throw err; // Rejeter l'erreur pour la gestion ultérieure
+    throw err;
   }
 }
+
+
 
  async function getDownload() {
   try {
@@ -95,11 +107,31 @@ async function getClientByEmail(email) {
   }
 }
 
- async function addProduct(name, price) {
+async function addProduct(
+  productName, 
+  longDescription, 
+  price, 
+  owner, 
+  model, 
+  licence, 
+  downloadSize, 
+  textures, 
+  path
+) {
   try {
     const res = await pool.query(
-      'INSERT INTO product(name, price) VALUES($1, $2) RETURNING *',
-      [name, price]
+      `INSERT INTO product(
+        "productName", 
+        "longDescription", 
+        "price", 
+        "owner", 
+        "model", 
+        "licence", 
+        "downloadSize", 
+        "textures", 
+        "path"
+      ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [productName, longDescription, price, owner, model, licence, downloadSize, textures, path]
     );
     console.log('Nouveau product ajouté:', res.rows[0]);
   } catch (err) {
@@ -161,27 +193,66 @@ app.post('/newDownload', async (req, res) => {
 });
 
 
+// app.get('/product', async (req, res) => {
+//   try {
+//     const products = await getProduct(req.query.productName); // Attendre la résolution de la promesse
+//     res.json(products); // Envoyer les résultats comme JSON
+//   } catch (err) {
+//     res.status(500).send('Erreur lors de la récupération des products');
+//   }
+// });
+
 app.get('/product', async (req, res) => {
   try {
-    const products = await getProduct(req.query.productName); // Attendre la résolution de la promesse
-    res.json(products); // Envoyer les résultats comme JSON
+    const products = await getProducts(); // Fetch products
+    if (!products) {
+      return res.status(404).json({ message: 'No products found' });
+    }
+    res.status(200).json(products); // Send products as JSON response
   } catch (err) {
-    res.status(500).send('Erreur lors de la récupération des products');
+    console.error('Error fetching products:', err); // Log detailed error
+    res.status(500).json({ message: 'Server error', error: err.message }); // Return error message
   }
 });
+
+
 
 app.post('/product', (req, res) => {
   console.log('Requête POST reçue sur /product');
   console.log('Données reçues :', req.body);
   try {
-    const data = req.body;
-    res.status(200).json({ message: 'Données reçues avec succès', data });
-    addProduct(data.name, data.price);
+    const {
+      productName, 
+      longDescription, 
+      price, 
+      owner, 
+      model, 
+      licence, 
+      downloadSize, 
+      textures, 
+      path
+    } = req.body;
+
+    // Pass the extracted values to addProduct
+    addProduct(
+      productName, 
+      longDescription, 
+      price, 
+      owner, 
+      model, 
+      licence, 
+      downloadSize, 
+      textures, 
+      path
+    );
+
+    res.status(200).json({ message: 'Données reçues avec succès', data: req.body });
   } catch (error) {
     console.error('Erreur de traitement:', error);
     res.status(500).json({ message: 'Erreur serveur' });
   }
 });
+
 
 
 app.post('/users', (req, res) => {
@@ -201,5 +272,5 @@ app.post('/users', (req, res) => {
 // Le serveur écoute sur le port 5002
 const PORT = 5002;
 app.listen(PORT, () => {
-  console.log(`Serveur Express en écoute sur le port ${PORT}`);
+  console.log(`Express server listening on port ${PORT}`);
 });
