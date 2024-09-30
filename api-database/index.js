@@ -139,6 +139,17 @@ async function addProduct(
   }
 }
 
+async function getProductById(id) {
+  try {
+    const res = await pool.query('SELECT * FROM product WHERE id = $1', [id]); // Use parameterized query to prevent SQL injection
+    console.log('Fetched product:', res.rows); // Log fetched product
+    return res.rows.length > 0 ? res.rows[0] : null; // Return the first product or null if not found
+  } catch (err) {
+    console.error('Error fetching product by ID:', err);
+    throw err;
+  }
+}
+
  async function addDownload(id_product, id_client) {
   try {
     const res = await pool.query(
@@ -208,10 +219,34 @@ app.get('/product', async (req, res) => {
     if (!products) {
       return res.status(404).json({ message: 'No products found' });
     }
-    res.status(200).json(products); // Send products as JSON response
+    res.status(200).json(products); 
   } catch (err) {
-    console.error('Error fetching products:', err); // Log detailed error
-    res.status(500).json({ message: 'Server error', error: err.message }); // Return error message
+    console.error('Error fetching products:', err); 
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+app.get('/products', async (req, res) => {
+  const { id } = req.query; // Get id from query parameters
+
+  try {
+    let product;
+    if (id) {
+      product = await getProductById(id); // Fetch product by ID
+      if (!product) {
+        return res.status(404).json({ message: 'Product not found' });
+      }
+    } else {
+      const products = await getProducts(); // Fetch all products if no ID is provided
+      if (!products) {
+        return res.status(404).json({ message: 'No products found' });
+      }
+      return res.status(200).json(products);
+    }
+    res.status(200).json(product); // Return the fetched product
+  } catch (err) {
+    console.error('Error fetching products:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 

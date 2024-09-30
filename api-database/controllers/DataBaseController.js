@@ -62,6 +62,7 @@ exports.login = async (req, res) => {
             username: `${user[0].name} ${user[0].lastname}`,
         };
         console.log("User " + userInfo.username + " connected !")
+        console.log(userInfo)
         res.status(200).json({ message: "Authentication successful!", token, user: userInfo, refreshToken});
     } catch (error) {
         console.log(error)
