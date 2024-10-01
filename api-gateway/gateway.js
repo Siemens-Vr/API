@@ -4,31 +4,26 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 
-// Charger les variables d'environnement
+// Load environment variables
 dotenv.config();
 
 const app = express();
 
-
 const corsOptions = {
-  origin: 'http://localhost:3000', // Replace with your React app's URL
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  allowedHeaders: 'Content-Type,Authorization,Accept,X-Requested-With',
+    origin: 'http://localhost:3000', // Replace with your React app's URL
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    allowedHeaders: 'Content-Type,Authorization,Accept,X-Requested-With',
 };
 
 app.use(cors(corsOptions));
 
-app.get('/', (req, res) => {
-    res.send('Hello, world gateway!');
-});
-
-// Middleware pour parser les JSON
+// Middleware to parse JSON
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-
+// Protect middleware
 exports.protect = (req, res, next) => {
-    const bearerToken = req.header('Authorization')
+    const bearerToken = req.header('Authorization');
     const token = bearerToken ? bearerToken.replace('Bearer ', '') : null;
     if (!token) {
         return res.status(401).json({ message: 'No token, authorization denied' });
@@ -43,34 +38,24 @@ exports.protect = (req, res, next) => {
     }
 };
 
-app.get('/api-database', async (req, res) => {
-  try {
-    console.log('test');
-    const response = await axios.get('http://localhost:5002/');
-    res.json(response.data);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch api-database' });
-  }
-});
+// Proxy setup for different services
+app.use('/api-database', createProxyMiddleware({ 
+    target: 'http://localhost:5002', // Your database service
+    changeOrigin: true,
+    pathRewrite: { '^/api-database': '' }, // Rewrite path if necessary
+}));
 
+app.use('/api-shadow', createProxyMiddleware({ 
+    target: 'http://localhost:5003', // Your shadow service
+    changeOrigin: true,
+    pathRewrite: { '^/api-shadow': '' }, // Rewrite path if necessary
+}));
 
-app.get('/api-shadow', async (req, res) => {
-  try {
-    const response = await axios.get('http://localhost:5003/');
-    res.json(response.data);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch api-shadow' });
-  }
-});
-
-app.get('/api-dwl', async (req, res) => {
-  try {
-    const response = await axios.get('http://localhost:5004/');
-    res.json(response.data);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch api-dwl' });
-  }
-});
+app.use('/api-dwl', createProxyMiddleware({ 
+    target: 'http://localhost:5004', // Your download service
+    changeOrigin: true,
+    pathRewrite: { '^/api-dwl': '' }, // Rewrite path if necessary
+}));
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
