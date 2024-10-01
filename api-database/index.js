@@ -139,6 +139,32 @@ async function addProduct(
   }
 }
 
+// Function to update client by id
+async function updateClientById(id, newData) {
+  try {
+    // Destructure the newData to extract the fields to update
+    const { name, lastname, gender, age, company } = newData;
+
+    // SQL update query with parameterized values
+    const query = `
+      UPDATE public.client
+      SET name = $1, lastname = $2, gender = $3, age = $4, company = $5
+      WHERE id = $6
+      RETURNING *;
+    `;
+
+    const values = [name, lastname, gender, age, company, id];
+
+    // Execute the query
+    const res = await pool.query(query, values);
+
+    return res.rows[0]; // Return the updated client
+  } catch (err) {
+    console.error('Error updating client:', err);
+    throw err;
+  }
+}
+
 async function getProductById(id) {
   try {
     const res = await pool.query('SELECT * FROM product WHERE id = $1', [id]); // Use parameterized query to prevent SQL injection
@@ -146,6 +172,23 @@ async function getProductById(id) {
     return res.rows.length > 0 ? res.rows[0] : null; // Return the first product or null if not found
   } catch (err) {
     console.error('Error fetching product by ID:', err);
+    throw err;
+  }
+}
+
+// Function to delete client by id
+async function deleteClientById(id) {
+  try {
+    // SQL query to delete the user by id
+    const query = 'DELETE FROM public.client WHERE id = $1 RETURNING *';
+    const values = [id];
+
+    // Execute the query
+    const res = await pool.query(query, values);
+
+    return res.rows[0]; // Return the deleted client
+  } catch (err) {
+    console.error('Error deleting client:', err);
     throw err;
   }
 }
@@ -302,6 +345,48 @@ app.post('/users', (req, res) => {
     res.status(500).json({ message: 'Erreur serveur' });
   }
 });
+
+// Define a PUT route to update the client
+app.put('/updateUser/:id', async (req, res) => {
+  const { id } = req.params;
+  const newData = req.body;
+
+  if (!id || !newData) {
+    return res.status(400).send('ID and newData are required');
+  }
+
+  try {
+    const updatedClient = await updateClientById(id, newData); // Update the client by id
+    if (updatedClient) {
+      res.json(updatedClient); // Send back the updated client details
+    } else {
+      res.status(404).send('Client not found');
+    }
+  } catch (err) {
+    res.status(500).send('Error updating client');
+  }
+});
+
+// Define a DELETE route to delete the client
+app.delete('/deleteUser/:id', async (req, res) => {
+  const { id } = req.params;
+
+  if (!id) {
+    return res.status(400).send('ID is required');
+  }
+
+  try {
+    const deletedClient = await deleteClientById(id); // Delete the client by id
+    if (deletedClient) {
+      res.json({ message: 'Client deleted successfully', deletedClient });
+    } else {
+      res.status(404).send('Client not found');
+    }
+  } catch (err) {
+    res.status(500).send('Error deleting client');
+  }
+});
+
 
 
 // Le serveur écoute sur le port 5002
