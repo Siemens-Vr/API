@@ -40,7 +40,7 @@ exports.protect = (req, res, next) => {
 
 // Proxy setup for different services
 app.use('/api-database', createProxyMiddleware({ 
-    target: 'http://localhost:5002', // Your database service
+    target: 'https://api-database-sz4l.onrender.com', // Your database service
     changeOrigin: true,
     pathRewrite: { '^/api-database': '' }, // Rewrite path if necessary
 }));
@@ -52,7 +52,7 @@ app.use('/api-shadow', createProxyMiddleware({
 }));
 
 app.use('/api-dwl', createProxyMiddleware({ 
-    target: 'http://localhost:5004', // Your download service
+    target: 'https://api-dwl.onrender.com', // Your download service
     changeOrigin: true,
     pathRewrite: { '^/api-dwl': '' }, // Rewrite path if necessary
 }));
