@@ -16,13 +16,13 @@ exports.DwlProduct = async (req, res) => {
 
         try {
             // Fetch product information using id
-            const productResponse = await axios.get('http://localhost:5002/products', {
+            const productResponse = await axios.get('https://api-database-sz4l.onrender.com/products', {
                 params: { id }
             });
 
             const productData = Array.isArray(productResponse.data) ? productResponse.data[0] : productResponse.data;
 
-            const userResponse = await axios.get('http://localhost:5002/userMail', {
+            const userResponse = await axios.get('https://api-database-sz4l.onrender.com/userMail', {
                 params: { email }
             });
             const user = userResponse.data;
@@ -61,7 +61,7 @@ exports.DwlProduct = async (req, res) => {
                 });
             });
 
-            await axios.post('http://localhost:5002/newDownload', {
+            await axios.post('https://api-database-sz4l.onrender.com/newDownload', {
                 params: { productId: productData.id, userId: user[0].id }
             });
 
