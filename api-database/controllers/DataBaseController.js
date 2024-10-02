@@ -4,7 +4,7 @@ const axios = require('axios');
 const pool = require('../db');
 
 
-const apiUrl = 'http://localhost:5002/users';
+const apiUrl = 'https://api-database-sz4l.onrender.com/users';
 
 
 

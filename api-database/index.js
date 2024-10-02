@@ -193,15 +193,17 @@ async function deleteClientById(id) {
   }
 }
 
- async function addDownload(id_product, id_client) {
+async function addDownload(id_product, id_client) {
   try {
     const res = await pool.query(
       'INSERT INTO download(client_id, product_id) VALUES($1, $2) RETURNING *',
       [id_client, id_product]
     );
     console.log('Nouvel telechargement ajouté:', res.rows[0]);
+    return res.rows[0];  // Return the newly added download
   } catch (err) {
     console.error('Erreur lors de l\'ajout du telechargement:', err);
+    throw err;  // Rethrow the error to be caught in the route handler
   }
 }
 
@@ -237,11 +239,12 @@ app.get('/download', async (req, res) => {
 
 app.post('/newDownload', async (req, res) => {
   try {
-    const data = req.body.params;
-    console.log(data)
-    const downloads = await addDownload(data.productId, data.userId); // Attendre la résolution de la promesse
-    res.json(downloads); // Envoyer les résultats comme JSON
+    const { productId, userId } = req.body;  
+    console.log({ productId, userId });
+    const downloads = await addDownload(productId, userId);
+    res.json(downloads);
   } catch (err) {
+    console.error('Error adding download:', err);
     res.status(500).send('Erreur lors de la récupération des downloads');
   }
 });

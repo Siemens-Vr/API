@@ -10,23 +10,27 @@ exports.DwlProduct = async (req, res) => {
         console.log("Email:", email);
         console.log("Product Id:", id);
 
+        // Check if email and product ID are provided
         if (!email || !id) {
             return res.status(400).send('Missing required parameters');
         }
 
         try {
-            // Fetch product information using id
+            // Fetch product information using product ID
             const productResponse = await axios.get('https://api-database-sz4l.onrender.com/products', {
                 params: { id }
             });
 
+            // Extract product data, assuming it's in an array format
             const productData = Array.isArray(productResponse.data) ? productResponse.data[0] : productResponse.data;
 
+            // Fetch user information using email
             const userResponse = await axios.get('https://api-database-sz4l.onrender.com/userMail', {
                 params: { email }
             });
             const user = userResponse.data;
 
+            // Validate product and user data
             if (!productData || !productData.path) {
                 return res.status(404).send('Product or file path not found');
             }
@@ -36,111 +40,61 @@ exports.DwlProduct = async (req, res) => {
 
             console.log("Product file path:", productData.path);
 
-            if (productData.path.startsWith('http')) {
-                // Handle downloading and serving the remote file
-                return downloadFileFromUrl(productData.path, productData.fileName || 'downloaded_file.apk', res);
-            }
-
-            // Assume local file
+            // Handle local file download
             const filePath = path.resolve(productData.path);
-            fs.access(filePath, fs.constants.F_OK, (err) => {
+            console.log("Resolved file path:", filePath);
+
+            fs.access(filePath, fs.constants.R_OK, (err) => {
                 if (err) {
-                    console.error('File not found:', err);
-                    return res.status(404).send('File not found');
+                    console.error('File not accessible:', err);
+                    return res.status(404).send('File not found or not accessible');
                 }
 
-                res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-                res.setHeader('Content-Disposition', `attachment; filename="${productData.fileName || 'downloaded_file.apk'}"`);
-
-                res.download(filePath, (err) => {
+                // Get file stats
+                fs.stat(filePath, (err, stats) => {
                     if (err) {
-                        console.error('Error during file download:', err);
-                        return res.status(500).send('Error during file download');
+                        console.error('Error getting file stats:', err);
+                        return res.status(500).send('Error processing file');
                     }
-                    console.log('File downloaded successfully');
-                });
-            });
 
-            await axios.post('https://api-database-sz4l.onrender.com/newDownload', {
-                params: { productId: productData.id, userId: user[0].id }
+                    // Set headers
+                    res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+                    res.setHeader('Content-Disposition', `attachment; filename="${productData.productName || 'downloaded_file.apk'}"`);
+                    res.setHeader('Content-Length', stats.size);
+
+                    // Create a read stream and pipe it to the response
+                    const fileStream = fs.createReadStream(filePath);
+                    fileStream.pipe(res);
+
+                    fileStream.on('error', (error) => {
+                        console.error('Error streaming file:', error);
+                        if (!res.headersSent) {
+                            res.status(500).send('Error during file download');
+                        }
+                    });
+
+                    fileStream.on('end', async () => {
+                        console.log('File downloaded successfully');
+
+                        // Log the download in the database
+                        try {
+                            await axios.post('https://api-database-sz4l.onrender.com/newDownload', {
+                                productId: productData.id,
+                                userId: user[0].id
+                            });
+                            console.log('Download logged successfully');
+                        } catch (downloadError) {
+                            console.error('Error logging the download:', downloadError);
+                        }
+                    });
+                });
             });
 
         } catch (error) {
             console.error('Error fetching product or user data:', error);
-            res.status(500).send('Error processing request');
+            if (!res.headersSent) {
+                return res.status(500).send('Error processing request');
+            }
         }
     });
-};
-const downloadFileFromUrl = async (fileUrl, fileName, res) => {
-    try {
-        console.log('Downloading file from URL:', fileUrl);
-
-        let fileId = extractFileIdFromUrl(fileUrl);
-        if (!fileId) {
-            throw new Error('Invalid Google Drive link. Could not extract file ID.');
-        }
-
-        const downloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-
-        const fileResponse = await axios({
-            url: downloadUrl,
-            method: 'GET',
-            responseType: 'arraybuffer',
-            maxRedirects: 5,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-            }
-        });
-
-        const contentType = fileResponse.headers['content-type'];
-        console.log('Content-Type:', contentType);
-
-        if (contentType.includes('text/html')) {
-            const warningPageHtml = fileResponse.data.toString('utf8');
-            console.log('Received HTML content. Checking for download warning...');
-            
-            if (warningPageHtml.includes('Google Drive - Download warning')) {
-                console.log('Google Drive download warning detected. Attempting to fetch confirmation link.');
-                const confirmationToken = extractConfirmationToken(warningPageHtml);
-                
-                if (confirmationToken) {
-                    console.log('Confirmation token found:', confirmationToken);
-                    const confirmedDownloadUrl = `https://drive.google.com/uc?export=download&confirm=${confirmationToken}&id=${fileId}`;
-                    
-                    const confirmedResponse = await axios({
-                        url: confirmedDownloadUrl,
-                        method: 'GET',
-                        responseType: 'stream',
-                        maxRedirects: 5,
-                    });
-
-                    res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-                    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-                    confirmedResponse.data.pipe(res);
-                } else {
-                    console.error('Warning page content:', warningPageHtml);
-                    throw new Error('Could not extract confirmation token from warning page.');
-                }
-            } else {
-                console.error('Unexpected HTML content:', warningPageHtml);
-                throw new Error('Received unexpected HTML content instead of file download.');
-            }
-        } else {
-            res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-            res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-            res.end(fileResponse.data);
-        }
-    } catch (err) {
-        console.error('Error downloading remote file:', err.message);
-        res.status(500).send('Error downloading file: ' + err.message);
-    }
-};
-
-const extractFileIdFromUrl = (url) => {
-    const match = url.match(/\/d\/(.+?)\/|id=(.+?)(&|$)/);
-    return match ? (match[1] || match[2]) : null;
-};
-const extractConfirmationToken = (html) => {
-    const matches = html.match(/confirm=([0-9A-Za-z\-_]+)/);
-    return matches ? matches[1] : null;
 };
