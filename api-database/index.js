@@ -12,7 +12,7 @@ const dotenv = require('dotenv')
 require('dotenv').config();
 
 const corsOptions = {
-  origin: 'http://localhost:3000', // Replace with your React app's URL
+  origin: 'https://react-project-delta-pied.vercel.app', // Replace with your React app's URL
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   allowedHeaders: 'Content-Type,Authorization,Accept,X-Requested-With',
 };
