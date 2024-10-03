@@ -334,6 +334,79 @@ app.post('/product', (req, res) => {
   }
 });
 
+// Update a product by ID
+app.patch('/product/:id', async (req, res) => {
+  const { id } = req.params; 
+  console.log(`PUT request received on /product/${id}`);
+  console.log('Received data:', req.body);
+
+  const {
+    productName,
+    longDescription,
+    price,
+    owner,
+    model,
+    licence,
+    downloadSize,
+    textures,
+    path
+  } = req.body;
+
+  try {
+    const result = await pool.query(
+      `UPDATE product
+       SET "productName" = $1, 
+           "longDescription" = $2, 
+           "price" = $3, 
+           "owner" = $4, 
+           "model" = $5, 
+           "licence" = $6, 
+           "downloadSize" = $7, 
+           "textures" = $8, 
+           "path" = $9
+       WHERE id = $10 
+       RETURNING *`,
+      [productName, longDescription, price, owner, model, licence, downloadSize, textures, path, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    console.log('Product updated:', result.rows[0]);
+    res.status(200).json({ message: 'Product updated successfully', data: result.rows[0] });
+  } catch (error) {
+    console.error('Error updating the product:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete a product by ID
+app.delete('/product/:id', async (req, res) => {
+  const { id } = req.params; 
+  console.log(`DELETE request received on /product/${id}`);
+
+  try {
+    const result = await pool.query(
+      `DELETE FROM product
+       WHERE id = $1 
+       RETURNING *`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    console.log('Product deleted:', result.rows[0]);
+    res.status(200).json({ message: 'Product deleted successfully', data: result.rows[0] });
+  } catch (error) {
+    console.error('Error deleting the product:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
 
 
 app.post('/users', (req, res) => {
@@ -359,7 +432,7 @@ app.put('/updateUser/:id', async (req, res) => {
   }
 
   try {
-    const updatedClient = await updateClientById(id, newData); // Update the client by id
+    const updatedClient = await updateClientById(id, newData); 
     if (updatedClient) {
       res.json(updatedClient); // Send back the updated client details
     } else {
