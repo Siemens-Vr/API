@@ -98,8 +98,8 @@ async function getClientByEmail(email) {
  async function addClient(name, lastName, gender, age, company, password, email) {
   try {
     const res = await pool.query(
-      'INSERT INTO client(name, lastName, gender, age, company, password, email) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [name, lastName, gender, age, company, password, email]
+      'INSERT INTO client(name, lastName, gender, age, company, password, email, role) VALUES($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [name, lastName, gender, age, company, password, email, role]
     );
     console.log('Nouvel client ajouté:', res.rows[0]);
   } catch (err) {
@@ -341,7 +341,7 @@ app.post('/users', (req, res) => {
   console.log('Données reçues :', req.body);
   try {
     const data = req.body;
-    addClient(data.name, data.lastName, data.gender, data.age, data.company, data.password, data.email);
+    addClient(data.name, data.lastName, data.gender, data.age, data.company, data.password, data.email, data.role);
     res.status(200).json({ message: 'Données reçues avec succès', data });
   } catch (error) {
     console.error('Erreur de traitement:', error);
