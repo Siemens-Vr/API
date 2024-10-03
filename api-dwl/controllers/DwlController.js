@@ -39,14 +39,20 @@ exports.DwlProduct = async (req, res) => {
             const filePath = productData.path;
             console.log("Product file path:", filePath);
 
-            // Check if the filePath is a remote URL
+            // Check if the filePath is a Google Drive URL
+            if (filePath.includes('drive.google.com')) {
+                console.log('Google Drive link detected. Sending URL to frontend.');
+                return res.status(200).json({ url: filePath });
+            }
+
+            // Check if the filePath is a remote URL (http/https)
             if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
                 // Handle remote file download
                 const fileRequest = https.get(filePath, (fileResponse) => {
                     if (fileResponse.statusCode !== 200) {
-                        if (!res.headersSent) {
-                            return res.status(404).send('Remote file not found');
-                        }
+                        console.error('Remote file not accessible. Status code:', fileResponse.statusCode);
+                        // Send URL to the frontend to handle opening in a new tab if error occurs
+                        return res.status(200).json({ url: filePath });
                     }
 
                     res.setHeader('Content-Type', 'application/vnd.android.package-archive');
