@@ -2,7 +2,7 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
-const https = require('https'); // For downloading remote files
+const https = require('https');
 
 exports.DwlProduct = async (req, res) => {
     cors()(req, res, async () => {
@@ -42,9 +42,11 @@ exports.DwlProduct = async (req, res) => {
             // Check if the filePath is a remote URL
             if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
                 // Handle remote file download
-                https.get(filePath, (fileResponse) => {
+                const fileRequest = https.get(filePath, (fileResponse) => {
                     if (fileResponse.statusCode !== 200) {
-                        return res.status(404).send('Remote file not found');
+                        if (!res.headersSent) {
+                            return res.status(404).send('Remote file not found');
+                        }
                     }
 
                     res.setHeader('Content-Type', 'application/vnd.android.package-archive');
@@ -70,12 +72,17 @@ exports.DwlProduct = async (req, res) => {
                     fileResponse.on('error', (error) => {
                         console.error('Error streaming remote file:', error);
                         if (!res.headersSent) {
-                            res.status(500).send('Error during remote file download');
+                            return res.status(500).send('Error during remote file download');
                         }
                     });
-                }).on('error', (error) => {
+                });
+
+                // Handle connection errors (e.g., ECONNRESET)
+                fileRequest.on('error', (error) => {
                     console.error('Error downloading the remote file:', error);
-                    res.status(500).send('Error downloading the file');
+                    if (!res.headersSent) {
+                        return res.status(500).send('Error downloading the file');
+                    }
                 });
 
             } else {
@@ -129,8 +136,10 @@ exports.DwlProduct = async (req, res) => {
 
         } catch (error) {
             console.error('Error fetching product or user data:', error);
+
+            // Ensure no additional responses are sent after headers
             if (!res.headersSent) {
-                return res.status(500).send('Error processing request');
+                res.status(500).send('Error processing request');
             }
         }
     });
