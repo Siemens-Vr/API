@@ -5,6 +5,10 @@ const cors = require('cors');
 const app = express();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const fs = require('fs').promises;
+const { createReadStream } = require('fs');
+const path = require('path');
 const DataBaseRoutes = require('./routes/DatabaseRoute')
 const pool = require('./db');
 const dotenv = require('dotenv')
@@ -25,6 +29,38 @@ app.use(express.urlencoded({ extended: true }));
 
 
 app.use('/api-database', DataBaseRoutes);
+
+const uploadPath = path.join(__dirname, 'uploads');
+
+// Check if the uploads folder exists; if not, create it
+async function ensureUploadDirectory() {
+  try {
+    await fs.access(uploadPath);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      await fs.mkdir(uploadPath, { recursive: true });
+    } else {
+      throw error;
+    }
+  }
+}
+
+// Call this function before setting up your routes
+ensureUploadDirectory().catch(console.error);
+
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadPath); // Use the defined upload path
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ storage: storage });
+
+app.use(express.json());
 
 // Exemple de fonction pour obtenir tous les clients
  async function getClient() {
@@ -133,9 +169,10 @@ async function addProduct(
       ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [productName, longDescription, price, owner, model, licence, downloadSize, textures, path]
     );
-    console.log('Nouveau product ajouté:', res.rows[0]);
+    console.log('New product added:', res.rows[0]);
   } catch (err) {
-    console.error('Erreur lors de l\'ajout d\'un product:', err);
+    console.error('Error adding product:', err);
+    throw err; // Rethrow the error to be caught in the route handler
   }
 }
 
@@ -297,42 +334,93 @@ app.get('/products', async (req, res) => {
 });
 
 
+// Function to serve files
+app.get('/uploads/:filename', async (req, res) => {
+  const filename = req.params.filename;
+  console.log('Requested filename:', filename);
 
-app.post('/product', (req, res) => {
-  console.log('Requête POST reçue sur /product');
-  console.log('Données reçues :', req.body);
+  // Use the correct base path
+  const uploadsDir = '/home/victor/Documents/API/api-database/uploads';
+  const filePath = path.join(uploadsDir, filename);
+
+  console.log('Attempting to access file:', filePath);
+
   try {
-    const {
-      productName, 
-      longDescription, 
-      price, 
-      owner, 
-      model, 
-      licence, 
-      downloadSize, 
-      textures, 
-      path
-    } = req.body;
+    // Check if the file exists and is readable
+    await fs.access(filePath, fs.constants.R_OK);
+    
+    // Get file stats
+    const stats = await fs.stat(filePath);
+    console.log('File stats:', stats);
 
-    // Pass the extracted values to addProduct
-    addProduct(
-      productName, 
-      longDescription, 
-      price, 
-      owner, 
-      model, 
-      licence, 
-      downloadSize, 
-      textures, 
-      path
-    );
+    // Stream the file to the response
+    const fileStream = createReadStream(filePath);
+    res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', stats.size);
 
-    res.status(200).json({ message: 'Données reçues avec succès', data: req.body });
-  } catch (error) {
-    console.error('Erreur de traitement:', error);
-    res.status(500).json({ message: 'Erreur serveur' });
+    fileStream.pipe(res);
+
+    fileStream.on('error', (error) => {
+      console.error('Error streaming file:', error);
+      // Only send error response if headers haven't been sent yet
+      if (!res.headersSent) {
+        res.status(500).send('Error during file download');
+      } else {
+        res.end();
+      }
+    });
+
+  } catch (err) {
+    console.error('File not accessible:', err);
+    res.status(404).send('File not found or not accessible');
   }
 });
+
+app.post('/product', upload.single('apkFile'), async (req, res) => {
+  console.log('POST request received on /product');
+  console.log('Received data:', req.body);
+  console.log('Uploaded file:', req.file);
+
+  try {
+      const {
+          productName, 
+          longDescription, 
+          price, 
+          owner, 
+          model, 
+          licence, 
+          downloadSize, 
+          textures
+      } = req.body;
+
+      let path = ''; // Initialize apkPath here
+      if (req.file) {
+          path = `http://localhost:5002/uploads/${req.file.filename}`; 
+      }
+      console.log('APK Path:', path);
+
+      // Pass the extracted values to addProduct
+      await addProduct(
+          productName, 
+          longDescription, 
+          price, 
+          owner, 
+          model, 
+          licence, 
+          downloadSize, 
+          textures, 
+          path ,
+      );
+
+      res.status(200).json({ message: 'Data received successfully'});
+  } catch (error) {
+      console.error('Processing error:', error);
+      res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
 
 // Update a product by ID
 app.patch('/product/:id', async (req, res) => {
