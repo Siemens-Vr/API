@@ -340,7 +340,7 @@ app.get('/uploads/:filename', async (req, res) => {
   console.log('Requested filename:', filename);
 
   // Use the correct base path
-  const uploadsDir = '/home/victor/Documents/API/api-database/uploads';
+  const uploadsDir = '/opt/render/project/src/api-database/uploads';
   const filePath = path.join(uploadsDir, filename);
 
   console.log('Attempting to access file:', filePath);
