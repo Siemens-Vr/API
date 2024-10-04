@@ -20,7 +20,7 @@ exports.DwlProduct = async (req, res) => {
             // Create an axios instance for localhost requests
             const localAxios = axios.create({
                 baseURL: 'https://api-database-sz4l.onrender.com',
-                httpsAgent: new http.Agent({ keepAlive: true })
+                httpsAgent: new https.Agent({ keepAlive: true })
             });
 
             // Fetch product information using product ID
