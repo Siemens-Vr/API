@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
 const https = require('https');
+const http = require('http');
 
 exports.DwlProduct = async (req, res) => {
     cors()(req, res, async () => {
@@ -14,17 +15,23 @@ exports.DwlProduct = async (req, res) => {
         if (!email || !id) {
             return res.status(400).send('Missing required parameters');
         }
-
+        
         try {
+            // Create an axios instance for localhost requests
+            const localAxios = axios.create({
+                baseURL: 'https://api-database-sz4l.onrender.com',
+                httpsAgent: new http.Agent({ keepAlive: true })
+            });
+
             // Fetch product information using product ID
-            const productResponse = await axios.get('https://api-database-sz4l.onrender.com/products', {
+            const productResponse = await localAxios.get('/products', {
                 params: { id }
             });
 
             const productData = Array.isArray(productResponse.data) ? productResponse.data[0] : productResponse.data;
 
             // Fetch user information using email
-            const userResponse = await axios.get('https://api-database-sz4l.onrender.com/userMail', {
+            const userResponse = await localAxios.get('/userMail', {
                 params: { email }
             });
             const user = userResponse.data;
@@ -39,33 +46,28 @@ exports.DwlProduct = async (req, res) => {
             const filePath = productData.path;
             console.log("Product file path:", filePath);
 
-            // Check if the filePath is a Google Drive URL
-            if (filePath.includes('drive.google.com')) {
-                console.log('Google Drive link detected. Sending URL to frontend.');
-                return res.status(200).json({ url: filePath });
-            }
-
-            // Check if the filePath is a remote URL (http/https)
-            if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
-                // Handle remote file download
-                const fileRequest = https.get(filePath, (fileResponse) => {
-                    if (fileResponse.statusCode !== 200) {
-                        console.error('Remote file not accessible. Status code:', fileResponse.statusCode);
-                        // Send URL to the frontend to handle opening in a new tab if error occurs
-                        return res.status(200).json({ url: filePath });
-                    }
+            // Check if the filePath is a localhost URL
+            if (filePath.startsWith('http://localhost:5002/uploads/')) {
+                // Extract filename from the URL
+                const filename = path.basename(filePath);
+                
+                try {
+                    // Fetch the file from the localhost server
+                    const fileResponse = await localAxios.get(`/uploads/${filename}`, {
+                        responseType: 'stream'
+                    });
 
                     res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-                    res.setHeader('Content-Disposition', `attachment; filename="${productData.productName || 'downloaded_file.apk'}"`);
+                    res.setHeader('Content-Disposition', `attachment; filename="${productData.productName || filename}"`);
 
-                    fileResponse.pipe(res); // Pipe the remote file directly to the response
+                    fileResponse.data.pipe(res);
 
-                    fileResponse.on('end', async () => {
-                        console.log('File downloaded successfully from remote URL');
+                    fileResponse.data.on('end', async () => {
+                        console.log('File downloaded successfully from localhost');
 
                         // Log the download in the database
                         try {
-                            await axios.post('https://api-database-sz4l.onrender.com/newDownload', {
+                            await localAxios.post('/newDownload', {
                                 productId: productData.id,
                                 userId: user[0].id
                             });
@@ -75,24 +77,22 @@ exports.DwlProduct = async (req, res) => {
                         }
                     });
 
-                    fileResponse.on('error', (error) => {
-                        console.error('Error streaming remote file:', error);
+                    fileResponse.data.on('error', (error) => {
+                        console.error('Error streaming file from localhost:', error);
                         if (!res.headersSent) {
-                            return res.status(500).send('Error during remote file download');
+                            res.status(500).send('Error during file download');
                         }
                     });
-                });
-
-                // Handle connection errors (e.g., ECONNRESET)
-                fileRequest.on('error', (error) => {
-                    console.error('Error downloading the remote file:', error);
-                    if (!res.headersSent) {
-                        return res.status(500).send('Error downloading the file');
+                } catch (fileError) {
+                    console.error('Error fetching file:', fileError);
+                    if (fileError.response && fileError.response.status === 404) {
+                        return res.status(404).send('File not found on the server');
+                    } else {
+                        return res.status(500).send('Error fetching file from server');
                     }
-                });
-
+                }
             } else {
-                // Handle local file download as before
+                // Handle local file download
                 const resolvedPath = path.resolve(filePath);
                 console.log("Resolved file path:", resolvedPath);
 
@@ -127,7 +127,7 @@ exports.DwlProduct = async (req, res) => {
 
                             // Log the download in the database
                             try {
-                                await axios.post('https://api-database-sz4l.onrender.com/newDownload', {
+                                await localAxios.post('/newDownload', {
                                     productId: productData.id,
                                     userId: user[0].id
                                 });
@@ -139,11 +139,9 @@ exports.DwlProduct = async (req, res) => {
                     });
                 });
             }
-
         } catch (error) {
             console.error('Error fetching product or user data:', error);
 
-            // Ensure no additional responses are sent after headers
             if (!res.headersSent) {
                 res.status(500).send('Error processing request');
             }
