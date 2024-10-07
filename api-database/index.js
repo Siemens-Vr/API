@@ -164,10 +164,11 @@ async function addProduct(
         "model", 
         "licence", 
         "downloadSize", 
+         "publishDate", 
         "textures", 
         "path"
-      ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [productName, longDescription, price, owner, model, licence, downloadSize, textures, path]
+      ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [productName, longDescription, price, owner, model, licence, downloadSize, publishDate, textures, path]
     );
     console.log('New product added:', res.rows[0]);
   } catch (err) {
@@ -390,7 +391,8 @@ app.post('/product', upload.single('apkFile'), async (req, res) => {
           owner, 
           model, 
           licence, 
-          downloadSize, 
+          downloadSize,
+          publishDate,
           textures
       } = req.body;
 
@@ -409,6 +411,7 @@ app.post('/product', upload.single('apkFile'), async (req, res) => {
           model, 
           licence, 
           downloadSize, 
+          publishDate,
           textures, 
           path ,
       );
