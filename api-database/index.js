@@ -131,17 +131,18 @@ async function getClientByEmail(email) {
 }
 
 // Exemple de fonction pour ajouter un nouvel employé
- async function addClient(name, lastName, gender, age, company, password, email) {
+async function addClient(name, lastName, gender, age, company, password, email, role) {
   try {
     const res = await pool.query(
       'INSERT INTO client(name, lastName, gender, age, company, password, email, role) VALUES($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
       [name, lastName, gender, age, company, password, email, role]
     );
-    console.log('Nouvel client ajouté:', res.rows[0]);
+    console.log('New client added:', res.rows[0]);
   } catch (err) {
-    console.error('Erreur lors de l\'ajout du client:', err);
+    console.error('Error adding client:', err);
   }
 }
+
 
 async function addProduct(
   productName, 
