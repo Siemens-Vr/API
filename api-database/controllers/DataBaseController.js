@@ -10,18 +10,19 @@ const apiUrl = 'https://api-database-sz4l.onrender.com/users';
 
 // Register a new user
 exports.register = async (req, res) => {
-    const { name, lastName, gender, age, company, password, email } = req.body;
-    try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const role = 'userRole'; 
-        await axios.post(apiUrl, { name, lastName, gender, age, company, password: hashedPassword, email, role });
-        console.log("New user created with role 'user'!!");
-        res.status(200).json({ message: 'User created' });
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ message: 'Server error' });
-    }
+  const { name, lastName, gender, age, company, password, email } = req.body;
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const role = 'userRole'; 
+    await addClient(name, lastName, gender, age, company, hashedPassword, email, role); 
+    console.log("New user created with role 'user'!!");
+    res.status(200).json({ message: 'User created' });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: 'Server error' });
+  }
 };
+
 
 
 
